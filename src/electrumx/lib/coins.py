@@ -4128,3 +4128,42 @@ class FerriteTestnet(Ferrite):
         'enode2.ferritecoin.org s t',
         'enode3.ferritecoin.org s t',
     ]
+
+class DeutscheEMark(Coin):
+    NAME = "Deutsche eMark"
+    SHORTNAME = "DEM"
+    NET = "mainnet"
+
+    # Ökonomie/Info
+    COIN = 100_000_000           # 1 DEM = 1e8 base units
+    BLOCK_TIME = 120             # ~2 Minuten (Info)
+
+    # Konsens/Hash
+    # SHA256d -> keine besondere HEADER_HASH nötig
+    GENESIS_HASH = "000000bc0ddf15573115c44b81d8b10e9ebd868b5c967f408bda273656f30e28"
+
+    # Base58 Präfixe (MAINNET)
+    # DEM nutzt i.d.R. P2PKH mit führendem 'N' -> 0x35 (53 dez).
+    P2PKH_VERBYTE = 0x35
+    # Häufig wie Bitcoin; bitte bei Bedarf gegen chainparams prüfen:
+    P2SH_VERBYTE  = 0x05
+    WIF_BYTE      = 0x80
+
+    # optionale Heuristik (start-up hints)
+    TX_COUNT = 1
+    TX_COUNT_HEIGHT = 0
+    TX_PER_BLOCK = 1
+
+
+class DeutscheEMarkTestnet(DeutscheEMark):
+    NAME = "Deutsche eMark"
+    SHORTNAME = "DEM"
+    NET = "testnet"
+
+    # Testnet-Genesis
+    GENESIS_HASH = "0000752b9e9142c3ec3d9e84f86feb59ce9e7e44d64996b5a021dbf55e3b4355"
+
+    # Standard-BTC-Testnet-Präfixe (passen zu 'm...' Adressen)
+    P2PKH_VERBYTE = 0x6F   # 111 dez -> 'm'/'n'
+    P2SH_VERBYTE  = 0xC4   # 196 dez -> '2'
+    WIF_BYTE      = 0xEF   # 239 dez
