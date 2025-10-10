@@ -651,6 +651,69 @@ class DeserializerTxTimeEMark(Deserializer):
         tx = self._read_tx_core(with_comment=True)
         return tx
 
+# --- BEGIN PATCH: robust eMark deserializer ---
+
+class DeserializerEMark(Deserializer):
+    """
+    Robuster Deserialisierer für eMark-Transaktionen.
+
+    Unterstützt beide Layouts:
+      A) version | nTime | vin | vout | locktime
+      B) version | nTime | vin | vout | tx-comment(varbytes) | locktime
+
+    Strategie:
+      1) Versuche A (ohne Kommentar).
+      2) Falls Parsing schiefgeht, spule zurück und versuche B (mit Kommentar).
+    """
+    TX_HASH_FN = staticmethod(double_sha256)
+
+    def _read_tx_try(self, with_comment: bool) -> Tx:
+        start = self.cursor
+
+        version  = self._read_le_int32()
+        ntime    = self._read_le_uint32()
+        inputs   = self._read_inputs()
+        outputs  = self._read_outputs()
+
+        if with_comment:
+            # Optionales Kommentar (VarStr). Wenn es tatsächlich nicht da ist,
+            # bricht _read_varbytes() sauber mit AssertionError/IndexError ab;
+            # das fangen wir im Aufrufer ab.
+            _comment = self._read_varbytes()
+        # locktime immer zum Schluss
+        locktime = self._read_le_uint32()
+
+        end = self.cursor
+        tx_bytes = self.binary[start:end]
+        tx_hash  = self.TX_HASH_FN(tx_bytes)
+
+        # Zeit-Feld wird in ElectrumX-Tx-Objekten nur für *TxTime* geführt.
+        return TxTime(
+            version=version,
+            time=ntime,
+            inputs=inputs,
+            outputs=outputs,
+            locktime=locktime,
+            txid=tx_hash,
+            wtxid=tx_hash,
+        )
+
+    def read_tx(self) -> Tx:
+        saved = self.cursor
+        try:
+            # 1) Versuch: ohne Kommentar
+            return self._read_tx_try(with_comment=False)
+        except Exception:
+            # rewind und 2) Versuch: mit Kommentar
+            self.cursor = saved
+            try:
+                return self._read_tx_try(with_comment=True)
+            except Exception as e2:
+                # endgültig weiterreichen, inkl. Kontext
+                raise e2
+
+# --- END PATCH ---
+
 
 @dataclass(kw_only=True, slots=True)
 class TxTimeSegWit(TxSegWit):
