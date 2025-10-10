@@ -601,40 +601,55 @@ class DeserializerTxTime(Deserializer):
         tx.txid = tx.wtxid = self.TX_HASH_FN(self.binary[start:self.cursor])
         return tx
 
-class DeserializerTxTimeWithComment(DeserializerTxTime):
+class DeserializerTxTimeEMark(Deserializer):
     """
-    eMark (alte Wallet):
-    version (4) | nTime (4) | vin | vout | tx-comment (varbytes) | locktime (4)
+    Robuster eMark-Deserializer:
+    - Primär: version | time | vin | vout | locktime
+    - Fallback: version | time | vin | vout | comment(varbytes) | locktime
+    Computes txid/wtxid über die tatsächlich gelesenen Bytes.
     """
-    def read_tx(self):
-        # Beginn der TX im Block merken
-        tx_start = self.cursor
 
-        version  = self._read_le_int32()
-        ntime    = self._read_le_uint32()     # eMark hat nTime direkt nach version
+    def _read_tx_core(self, with_comment: bool):
+        start = self.cursor
+        version = self._read_le_int32()
+        ntime   = self._read_le_uint32()
+        inputs  = self._read_inputs()
+        outputs = self._read_outputs()
 
-        inputs   = self._read_inputs()
-        outputs  = self._read_outputs()
-
-        # Kommentar (VarString) lesen & verwerfen (bei leeren TXs ist das 0x00)
-        _comment = self._read_varbytes()
+        if with_comment:
+            # Kommentar-VarString (falls vorhanden) lesen
+            # -> Wenn leer, ist das einfach eine 0x00-Varint.
+            _comment = self._read_varbytes()
 
         locktime = self._read_le_uint32()
 
-        # Hash über die *komplette* TX (so wie sie auf der Chain serialisiert ist)
-        tx_end   = self.cursor
-        tx_bytes = self.binary[tx_start:tx_end]
-        tx_hash  = double_sha256(tx_bytes)     # BYTES, kein Hex-String!
+        end = self.cursor
+        tx_bytes = self.binary[start:end]
+        tx_hash  = self.TX_HASH_FN(tx_bytes)
 
-        # ElectrumX 1.18: Tx hat KEIN 'time'-Feld → nicht übergeben
         return Tx(
             version=version,
             inputs=inputs,
             outputs=outputs,
             locktime=locktime,
             txid=tx_hash,
-            wtxid=tx_hash
+            wtxid=tx_hash,
         )
+
+    def read_tx(self) -> Tx:
+        save = self.cursor
+        try:
+            # Versuch 1: ohne Kommentar
+            return self._read_tx_core(with_comment=False)
+        except AssertionError:
+            # Cursor zurück und Versuch 2
+            self.cursor = save
+        except IndexError:
+            self.cursor = save
+
+        # Versuch 2: mit Kommentar
+        tx = self._read_tx_core(with_comment=True)
+        return tx
 
 
 @dataclass(kw_only=True, slots=True)
