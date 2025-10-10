@@ -605,40 +605,36 @@ class DeserializerTxTimeWithComment(DeserializerTxTime):
     """
     eMark (alte Wallet):
     version (4) | nTime (4) | vin | vout | tx-comment (varbytes) | locktime (4)
-
-    Falls deine Chain das Kommentar-Feld hinter locktime hätte, wäre der Code
-    bei leerem Kommentar identisch korrekt. Bei nicht-leerem Kommentar würden wir es merken –
-    dann passen wir die Reihenfolge an.
     """
     def read_tx(self):
-        # mitschneiden, wo die TX im Block beginnt
+        # Beginn der TX im Block merken
         tx_start = self.cursor
 
         version  = self._read_le_int32()
-        ntime    = self._read_le_uint32()
+        ntime    = self._read_le_uint32()     # eMark hat nTime direkt nach version
+
         inputs   = self._read_inputs()
         outputs  = self._read_outputs()
 
-        # Kommentar (VarString) einlesen & verwerfen
+        # Kommentar (VarString) lesen & verwerfen (bei leeren TXs ist das 0x00)
         _comment = self._read_varbytes()
 
         locktime = self._read_le_uint32()
 
-        # Ende der TX-Bytes
+        # Hash über die *komplette* TX (so wie sie auf der Chain serialisiert ist)
         tx_end   = self.cursor
         tx_bytes = self.binary[tx_start:tx_end]
+        tx_hash  = double_sha256(tx_bytes)     # BYTES, kein Hex-String!
 
-        # Hashes berechnen (kein SegWit → wtxid == txid)
-        tx_hash  = hash_to_hex_str(double_sha256(tx_bytes))
-
-        # Robust für Builds ohne Tx(time=...)
-        try:
-            return Tx(version=version, inputs=inputs, outputs=outputs,
-                      locktime=locktime, time=ntime, txid=tx_hash_bytes, wtxid=tx_hash_bytes)
-        except TypeError:
-            # Fallback ohne "time"
-            return Tx(version=version, inputs=inputs, outputs=outputs,
-                      locktime=locktime, txid=tx_hash, wtxid=tx_hash)
+        # ElectrumX 1.18: Tx hat KEIN 'time'-Feld → nicht übergeben
+        return Tx(
+            version=version,
+            inputs=inputs,
+            outputs=outputs,
+            locktime=locktime,
+            txid=tx_hash,
+            wtxid=tx_hash
+        )
 
 
 @dataclass(kw_only=True, slots=True)
