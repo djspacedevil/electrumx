@@ -601,6 +601,19 @@ class DeserializerTxTime(Deserializer):
         tx.txid = tx.wtxid = self.TX_HASH_FN(self.binary[start:self.cursor])
         return tx
 
+# ganz unten bei den anderen Deserializern ergänzen
+class DeserializerTxTimeWithComment(DeserializerTxTime):
+    """eMark: Version | nTime | vin | vout | tx-comment(varbytes) | locktime"""
+    def read_tx(self):
+        version = self._read_le_int32()
+        ntime   = self._read_le_uint32()
+        inputs  = self._read_inputs()
+        outputs = self._read_outputs()
+        _comment = self._read_varbytes()   # <— importent: Extra-Field read and forget
+        locktime = self._read_le_uint32()
+        return Tx(version=version, inputs=inputs, outputs=outputs,
+                  locktime=locktime, time=ntime)
+
 
 @dataclass(kw_only=True, slots=True)
 class TxTimeSegWit(TxSegWit):
