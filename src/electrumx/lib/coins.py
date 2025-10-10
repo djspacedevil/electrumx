@@ -4167,8 +4167,7 @@ class DeutscheEMarkTestnet(DeutscheEMark):
     BASIC_HEADER_SIZE = 80
 
     # Testnet-Genesis
-    GENESIS_HASH = '0000752b9e9142c3ec3d9e84f86feb59ce9e7e44d64996b5a021dbf55e3b4355'
-    GENESIS_HASH = "f393ffc7b36ae7586ce46492881d66919f5db30e7715ddbdc18c469d6e156831"
+    GENESIS_HASH = "0000752b9e9142c3ec3d9e84f86feb59ce9e7e44d64996b5a021dbf55e3b4355"
 
     # Standard-BTC-Testnet-Präfixe (passen zu 'm...' Adressen)
     P2PKH_VERBYTE = bytes.fromhex("6f")   # 111 dez -> 'm'/'n'
