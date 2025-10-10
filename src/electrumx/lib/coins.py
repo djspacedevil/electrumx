@@ -4135,7 +4135,7 @@ class DeutscheEMark(Coin):
     NET = "mainnet"
     DAEMON = daemon.LegacyRPCDaemon
     DESERIALIZER = lib_tx.DeserializerEMark
-    BASIC_HEADER_SIZE = 82
+    BASIC_HEADER_SIZE = 80
 
     # Ökonomie/Info
     COIN = 100_000_000           # 1 DEM = 1e8 base units
@@ -4164,9 +4164,10 @@ class DeutscheEMarkTestnet(DeutscheEMark):
     NET = "testnet"
     DAEMON = daemon.LegacyRPCDaemon
     DESERIALIZER = lib_tx.DeserializerEMark
-    BASIC_HEADER_SIZE = 82
+    BASIC_HEADER_SIZE = 80
 
     # Testnet-Genesis
+    GENESIS_HASH = '0000752b9e9142c3ec3d9e84f86feb59ce9e7e44d64996b5a021dbf55e3b4355'
     GENESIS_HASH = "f393ffc7b36ae7586ce46492881d66919f5db30e7715ddbdc18c469d6e156831"
 
     # Standard-BTC-Testnet-Präfixe (passen zu 'm...' Adressen)
