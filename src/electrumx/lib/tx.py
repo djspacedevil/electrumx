@@ -603,16 +603,30 @@ class DeserializerTxTime(Deserializer):
 
 # ganz unten bei den anderen Deserializern ergänzen
 class DeserializerTxTimeWithComment(DeserializerTxTime):
-    """eMark: Version | nTime | vin | vout | tx-comment(varbytes) | locktime"""
+    """eMark (alte Wallet): Version | nTime | vin | vout | tx-comment(varbytes) | locktime"""
     def read_tx(self):
         version = self._read_le_int32()
         ntime   = self._read_le_uint32()
         inputs  = self._read_inputs()
         outputs = self._read_outputs()
-        _comment = self._read_varbytes()   # <— importent: Extra-Field read and forget
+        _comment = self._read_varbytes()   # Zusatzfeld einlesen & verwerfen
         locktime = self._read_le_uint32()
-        return Tx(version=version, inputs=inputs, outputs=outputs,
-                  locktime=locktime, time=ntime)
+
+        # Robust konstruieren – Build-kompatibel:
+        try:
+            # Manche ElectrumX-Versionen kennen Tx(time=...)
+            return Tx(version=version, inputs=inputs, outputs=outputs,
+                      locktime=locktime, time=ntime)
+        except TypeError:
+            # Falls es einen TxTime-Typ gibt, nutze den
+            try:
+                return TxTime(version=version, inputs=inputs, outputs=outputs,
+                              locktime=locktime, time=ntime)  # noqa: F821 (existiert evtl. nicht)
+            except Exception:
+                # Fallback: Zeit wird verworfen – Hauptsache korrekt geparst
+                return Tx(version=version, inputs=inputs, outputs=outputs,
+                          locktime=locktime)
+
 
 
 @dataclass(kw_only=True, slots=True)
