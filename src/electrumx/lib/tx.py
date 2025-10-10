@@ -634,7 +634,7 @@ class DeserializerTxTimeWithComment(DeserializerTxTime):
         # Robust für Builds ohne Tx(time=...)
         try:
             return Tx(version=version, inputs=inputs, outputs=outputs,
-                      locktime=locktime, time=ntime, txid=tx_hash, wtxid=tx_hash)
+                      locktime=locktime, time=ntime, txid=tx_hash_bytes, wtxid=tx_hash_bytes)
         except TypeError:
             # Fallback ohne "time"
             return Tx(version=version, inputs=inputs, outputs=outputs,
