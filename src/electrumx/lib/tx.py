@@ -601,32 +601,44 @@ class DeserializerTxTime(Deserializer):
         tx.txid = tx.wtxid = self.TX_HASH_FN(self.binary[start:self.cursor])
         return tx
 
-# ganz unten bei den anderen Deserializern ergänzen
 class DeserializerTxTimeWithComment(DeserializerTxTime):
-    """eMark (alte Wallet): Version | nTime | vin | vout | tx-comment(varbytes) | locktime"""
+    """
+    eMark (alte Wallet):
+    version (4) | nTime (4) | vin | vout | tx-comment (varbytes) | locktime (4)
+
+    Falls deine Chain das Kommentar-Feld hinter locktime hätte, wäre der Code
+    bei leerem Kommentar identisch korrekt. Bei nicht-leerem Kommentar würden wir es merken –
+    dann passen wir die Reihenfolge an.
+    """
     def read_tx(self):
-        version = self._read_le_int32()
-        ntime   = self._read_le_uint32()
-        inputs  = self._read_inputs()
-        outputs = self._read_outputs()
-        _comment = self._read_varbytes()   # Zusatzfeld einlesen & verwerfen
+        # mitschneiden, wo die TX im Block beginnt
+        tx_start = self.cursor
+
+        version  = self._read_le_int32()
+        ntime    = self._read_le_uint32()
+        inputs   = self._read_inputs()
+        outputs  = self._read_outputs()
+
+        # Kommentar (VarString) einlesen & verwerfen
+        _comment = self._read_varbytes()
+
         locktime = self._read_le_uint32()
 
-        # Robust konstruieren – Build-kompatibel:
-        try:
-            # Manche ElectrumX-Versionen kennen Tx(time=...)
-            return Tx(version=version, inputs=inputs, outputs=outputs,
-                      locktime=locktime, time=ntime)
-        except TypeError:
-            # Falls es einen TxTime-Typ gibt, nutze den
-            try:
-                return TxTime(version=version, inputs=inputs, outputs=outputs,
-                              locktime=locktime, time=ntime)  # noqa: F821 (existiert evtl. nicht)
-            except Exception:
-                # Fallback: Zeit wird verworfen – Hauptsache korrekt geparst
-                return Tx(version=version, inputs=inputs, outputs=outputs,
-                          locktime=locktime)
+        # Ende der TX-Bytes
+        tx_end   = self.cursor
+        tx_bytes = self.binary[tx_start:tx_end]
 
+        # Hashes berechnen (kein SegWit → wtxid == txid)
+        tx_hash  = hash_to_hex_str(double_sha256(tx_bytes))
+
+        # Robust für Builds ohne Tx(time=...)
+        try:
+            return Tx(version=version, inputs=inputs, outputs=outputs,
+                      locktime=locktime, time=ntime, txid=tx_hash, wtxid=tx_hash)
+        except TypeError:
+            # Fallback ohne "time"
+            return Tx(version=version, inputs=inputs, outputs=outputs,
+                      locktime=locktime, txid=tx_hash, wtxid=tx_hash)
 
 
 @dataclass(kw_only=True, slots=True)
