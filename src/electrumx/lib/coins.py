@@ -4136,23 +4136,13 @@ class DeutscheEMark(Coin):
     DAEMON = daemon.LegacyRPCDaemon
     DESERIALIZER = lib_tx.DeserializerTxTimeWithComment
     BASIC_HEADER_SIZE = 80
-
-    # Ökonomie/Info
-    COIN = 100_000_000           # 1 DEM = 1e8 base units
-    BLOCK_TIME = 120             # ~2 Minuten (Info)
-
-    # Konsens/Hash
-    # SHA256d -> keine besondere HEADER_HASH nötig
+    COIN = 100_000_000
+    BLOCK_TIME = 120
     GENESIS_HASH = "000000bc0ddf15573115c44b81d8b10e9ebd868b5c967f408bda273656f30e28"
-
-    # Base58 Präfixe (MAINNET)
-    # DEM nutzt i.d.R. P2PKH mit führendem 'N' -> 0x35 (53 dez).
     P2PKH_VERBYTE = bytes.fromhex("35")
-    # Häufig wie Bitcoin; bitte bei Bedarf gegen chainparams prüfen:
     P2SH_VERBYTE  = (bytes.fromhex("05"),)
     WIF_BYTE      = bytes.fromhex("80")
 
-    # optionale Heuristik (start-up hints)
     TX_COUNT = 1
     TX_COUNT_HEIGHT = 0
     TX_PER_BLOCK = 1

@@ -601,124 +601,7 @@ class DeserializerTxTime(Deserializer):
         tx.txid = tx.wtxid = self.TX_HASH_FN(self.binary[start:self.cursor])
         return tx
 
-class DeserializerTxTimeEMark(Deserializer):
-    """
-    Robuster eMark-Deserializer:
-    - Primär: version | time | vin | vout | locktime
-    - Fallback: version | time | vin | vout | comment(varbytes) | locktime
-    Computes txid/wtxid über die tatsächlich gelesenen Bytes.
-    """
-
-    def _read_tx_core(self, with_comment: bool):
-        start = self.cursor
-        version = self._read_le_int32()
-        ntime   = self._read_le_uint32()
-        inputs  = self._read_inputs()
-        outputs = self._read_outputs()
-
-        if with_comment:
-            # Kommentar-VarString (falls vorhanden) lesen
-            # -> Wenn leer, ist das einfach eine 0x00-Varint.
-            _comment = self._read_varbytes()
-
-        locktime = self._read_le_uint32()
-
-        end = self.cursor
-        tx_bytes = self.binary[start:end]
-        tx_hash  = self.TX_HASH_FN(tx_bytes)
-
-        return Tx(
-            version=version,
-            inputs=inputs,
-            outputs=outputs,
-            locktime=locktime,
-            txid=tx_hash,
-            wtxid=tx_hash,
-        )
-
-    def read_tx(self) -> Tx:
-        save = self.cursor
-        try:
-            # Versuch 1: ohne Kommentar
-            return self._read_tx_core(with_comment=False)
-        except AssertionError:
-            # Cursor zurück und Versuch 2
-            self.cursor = save
-        except IndexError:
-            self.cursor = save
-
-        # Versuch 2: mit Kommentar
-        tx = self._read_tx_core(with_comment=True)
-        return tx
-
-# --- BEGIN PATCH: robust eMark deserializer ---
-
-class DeserializerEMark(Deserializer):
-    """
-    Robuster Deserialisierer für eMark-Transaktionen.
-
-    Unterstützt beide Layouts:
-      A) version | nTime | vin | vout | locktime
-      B) version | nTime | vin | vout | tx-comment(varbytes) | locktime
-
-    Strategie:
-      1) Versuche A (ohne Kommentar).
-      2) Falls Parsing schiefgeht, spule zurück und versuche B (mit Kommentar).
-    """
-    TX_HASH_FN = staticmethod(double_sha256)
-
-    def _read_tx_try(self, with_comment: bool) -> Tx:
-        start = self.cursor
-
-        version  = self._read_le_int32()
-        ntime    = self._read_le_uint32()
-        inputs   = self._read_inputs()
-        outputs  = self._read_outputs()
-
-        if with_comment:
-            # Optionales Kommentar (VarStr). Wenn es tatsächlich nicht da ist,
-            # bricht _read_varbytes() sauber mit AssertionError/IndexError ab;
-            # das fangen wir im Aufrufer ab.
-            _comment = self._read_varbytes()
-        # locktime immer zum Schluss
-        locktime = self._read_le_uint32()
-
-        end = self.cursor
-        tx_bytes = self.binary[start:end]
-        tx_hash  = self.TX_HASH_FN(tx_bytes)
-
-        # Zeit-Feld wird in ElectrumX-Tx-Objekten nur für *TxTime* geführt.
-        return TxTime(
-            version=version,
-            time=ntime,
-            inputs=inputs,
-            outputs=outputs,
-            locktime=locktime,
-            txid=tx_hash,
-            wtxid=tx_hash,
-        )
-
-    def read_tx(self) -> Tx:
-        saved = self.cursor
-        try:
-            # 1) Versuch: ohne Kommentar
-            return self._read_tx_try(with_comment=False)
-        except Exception:
-            # rewind und 2) Versuch: mit Kommentar
-            self.cursor = saved
-            try:
-                return self._read_tx_try(with_comment=True)
-            except Exception as e2:
-                # endgültig weiterreichen, inkl. Kontext
-                raise e2
-
-# --- END PATCH ---
-
 class DeserializerTxTimeWithComment(DeserializerTxTime):
-    """
-    eMark (alte Wallet):
-    version (4) | nTime (4) | vin | vout | locktime (4) | tx-comment (varbytes, optional)
-    """
     def read_tx(self):
         tx_start = self.cursor
 
@@ -728,20 +611,15 @@ class DeserializerTxTimeWithComment(DeserializerTxTime):
         outputs = self._read_outputs()
         locktime = self._read_le_uint32()
 
-        # Optionales Kommentar NACH locktime – nur lesen, wenn noch Daten da sind.
-        # Bei leeren Kommentaren ist das einfach ein VarInt=0 (1 Byte).
         if self.cursor < self.binary_length:
             try:
                 _comment = self._read_varbytes()
             except AssertionError:
-                # Falls der Block genau am Locktime endet (kein Kommentar vorhanden),
-                # nicht crashen – Cursor bleibt auf locktime-Ende.
                 pass
 
         tx_end = self.cursor
         tx_bytes = self.binary[tx_start:tx_end]
-        tx_hash = double_sha256(tx_bytes)      # bytes!
-        # kein SegWit → wtxid == txid
+        tx_hash = double_sha256(tx_bytes)
         return TxTime(
             version=version,
             time=ntime,
