@@ -4163,3 +4163,7 @@ class DeutscheEMarkTestnet(DeutscheEMark):
     P2PKH_VERBYTE = bytes.fromhex("6f")   # 111 dez -> 'm'/'n'
     P2SH_VERBYTE  = (bytes.fromhex("c4"),)   # 196 dez -> '2'
     WIF_BYTE      = bytes.fromhex("ef")   # 239 dez
+
+    TX_COUNT = 978_905
+    TX_COUNT_HEIGHT = 600_190
+    TX_PER_BLOCK = 1
