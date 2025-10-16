@@ -31,3 +31,12 @@ Alternatively, conservative people can run from the latest tag, for which there 
 ```
 $ pip install e-x
 ```
+
+
+### Docker Build
+Download only the Dockerfile and run:
+```
+$ docker build -t local-electrumx:latest .
+```
+You can also use the docker compose file after build to run the system.
+Change the env to your coin and RPC.

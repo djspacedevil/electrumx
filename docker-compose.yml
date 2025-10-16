@@ -1,0 +1,11 @@
+services:
+  electrumx:
+    container_name: emark-electrumx
+    image: local-electrumx:latest
+    restart: unless-stopped
+    volumes:
+      - /home/pi/electrumx:/data
+    ports:
+      - 50001:50002
+    env_file:
+      - stack.env
