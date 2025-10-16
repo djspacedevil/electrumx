@@ -4134,7 +4134,7 @@ class DeutscheEMark(Coin):
     SHORTNAME = "DEM"
     NET = "mainnet"
     DAEMON = daemon.LegacyRPCDaemon
-    DESERIALIZER = lib_tx.DeserializerEMark
+    DESERIALIZER = lib_tx.DeserializerTxTimeWithComment
     BASIC_HEADER_SIZE = 80
 
     # Ökonomie/Info
@@ -4163,7 +4163,7 @@ class DeutscheEMarkTestnet(DeutscheEMark):
     SHORTNAME = "DEM"
     NET = "testnet"
     DAEMON = daemon.LegacyRPCDaemon
-    DESERIALIZER = lib_tx.DeserializerEMark
+    DESERIALIZER = lib_tx.DeserializerTxTimeWithComment
     BASIC_HEADER_SIZE = 80
 
     # Testnet-Genesis

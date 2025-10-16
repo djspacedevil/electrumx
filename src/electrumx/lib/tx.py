@@ -714,6 +714,44 @@ class DeserializerEMark(Deserializer):
 
 # --- END PATCH ---
 
+class DeserializerTxTimeWithComment(DeserializerTxTime):
+    """
+    eMark (alte Wallet):
+    version (4) | nTime (4) | vin | vout | locktime (4) | tx-comment (varbytes, optional)
+    """
+    def read_tx(self):
+        tx_start = self.cursor
+
+        version = self._read_le_int32()
+        ntime   = self._read_le_uint32()
+        inputs  = self._read_inputs()
+        outputs = self._read_outputs()
+        locktime = self._read_le_uint32()
+
+        # Optionales Kommentar NACH locktime – nur lesen, wenn noch Daten da sind.
+        # Bei leeren Kommentaren ist das einfach ein VarInt=0 (1 Byte).
+        if self.cursor < self.binary_length:
+            try:
+                _comment = self._read_varbytes()
+            except AssertionError:
+                # Falls der Block genau am Locktime endet (kein Kommentar vorhanden),
+                # nicht crashen – Cursor bleibt auf locktime-Ende.
+                pass
+
+        tx_end = self.cursor
+        tx_bytes = self.binary[tx_start:tx_end]
+        tx_hash = double_sha256(tx_bytes)      # bytes!
+        # kein SegWit → wtxid == txid
+        return TxTime(
+            version=version,
+            time=ntime,
+            inputs=inputs,
+            outputs=outputs,
+            locktime=locktime,
+            txid=tx_hash,
+            wtxid=tx_hash,
+        )
+
 
 @dataclass(kw_only=True, slots=True)
 class TxTimeSegWit(TxSegWit):
